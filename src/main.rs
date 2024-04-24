@@ -1,8 +1,8 @@
-use iced::alignment::{self, Alignment};
+use iced::alignment;
 use iced::executor;
 use iced::theme::Theme;
 use iced::time;
-use iced::widget::{button, column, horizontal_space, row, text, Button, Column, Text};
+use iced::widget::{button, column, horizontal_space, row, text};
 use iced::{Application, Command, Element, Settings, Subscription};
 
 use rand::distributions::Alphanumeric;
@@ -77,11 +77,14 @@ impl Application for State {
         if diff != Duration::ZERO {
             column![
                 row![
+                    horizontal_space(),
                     text(message),
                     horizontal_space(),
                     text(format!("{:0>2}:{:02}", diff.as_secs(), diff.as_millis())),
+                    horizontal_space(),
                 ],
                 row![
+                    horizontal_space(),
                     button(text(self.chars[0] as char))
                         .on_press(Message::Selected(self.chars[0]))
                         .padding(20),
@@ -89,11 +92,17 @@ impl Application for State {
                     button(text(self.chars[1] as char))
                         .on_press(Message::Selected(self.chars[1]))
                         .padding(20),
+                    horizontal_space(),
                 ],
-                row![text(self.chosen_letter as char)
-                    .horizontal_alignment(alignment::Horizontal::Center)
-                    .vertical_alignment(alignment::Vertical::Center)],
                 row![
+                    horizontal_space(),
+                    text(self.chosen_letter as char)
+                        .horizontal_alignment(alignment::Horizontal::Center)
+                        .vertical_alignment(alignment::Vertical::Center),
+                    horizontal_space(),
+                ],
+                row![
+                    horizontal_space(),
                     button(text(self.chars[2] as char))
                         .on_press(Message::Selected(self.chars[2]))
                         .padding(20),
@@ -101,14 +110,13 @@ impl Application for State {
                     button(text(self.chars[3] as char))
                         .on_press(Message::Selected(self.chars[3]))
                         .padding(20),
+                    horizontal_space(),
                 ],
             ]
             .padding(20)
             .into()
         } else {
-            column![
-                text("GAME OVER"),
-            ].into()
+            column![text("GAME OVER"),].into()
         }
     }
 
@@ -133,7 +141,10 @@ impl Application for State {
                 self.chars.shuffle(&mut rng);
 
                 if was_correct {
-                    self.timeout = std::cmp::max(self.timeout - Duration::from_millis(500), Duration::from_secs(5)); 
+                    self.timeout = std::cmp::max(
+                        self.timeout - Duration::from_millis(500),
+                        Duration::from_secs(5),
+                    );
                     self.elapsed_time = Duration::ZERO;
                 }
             }
@@ -148,5 +159,11 @@ impl Application for State {
 }
 
 pub fn main() -> iced::Result {
-    State::run(Settings::default())
+    let mut settings = Settings::default();
+
+    settings.window.size.width = 400f32;
+    settings.window.size.height = 400f32;
+    settings.window.resizable = false;
+
+    State::run(settings)
 }
