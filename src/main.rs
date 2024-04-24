@@ -2,7 +2,7 @@ use iced::alignment;
 use iced::executor;
 use iced::theme::Theme;
 use iced::time;
-use iced::widget::{button, column, vertical_space, horizontal_space, row, text};
+use iced::widget::{button, column, horizontal_space, row, text, vertical_space};
 use iced::{Application, Command, Element, Settings, Subscription};
 
 use rand::distributions::Alphanumeric;
@@ -24,8 +24,10 @@ struct State {
     timeout: Duration,
     last_tick: Instant,
 
-    correct_clicks: u64,
-    wrong_clicks: u64,
+    correct_clicks: u32,
+    wrong_clicks: u32,
+    stats: Vec<(u32, u32)>,
+    level: u8,
 }
 
 impl Application for State {
@@ -55,6 +57,8 @@ impl Application for State {
                 last_tick: Instant::now(),
                 correct_clicks: 0,
                 wrong_clicks: 0,
+                stats: vec![(0, 0); 3],
+                level: 1,
             },
             Command::none(),
         )
@@ -71,9 +75,12 @@ impl Application for State {
             Duration::ZERO
         };
 
-        let score = format!("{} Correct | {} Wrong", self.correct_clicks, self.wrong_clicks);
+        let score = format!(
+            "{} Correct | {} Wrong",
+            self.correct_clicks, self.wrong_clicks
+        );
 
-        if diff != Duration::ZERO {
+        if self.level < 4 {
             column![
                 row![
                     horizontal_space(),
@@ -117,8 +124,38 @@ impl Application for State {
             .into()
         } else {
             column![
-                text("GAME OVER"),
-            ].into()
+                text("GAME OVER\nStats"),
+                row![
+                    column![
+                        text("Level 1"),
+                        text(format!(
+                            "Correct {} \n Wrong {}",
+                            self.stats[0].0, self.stats[0].1
+                        )),
+                    ]
+                    .padding(5),
+                    horizontal_space(),
+                    column![
+                        text("Level 2"),
+                        text(format!(
+                            "Correct {} \n Wrong {}",
+                            self.stats[1].0, self.stats[1].1
+                        )),
+                    ]
+                    .padding(5),
+                    horizontal_space(),
+                    column![
+                        text("Level 3"),
+                        text(format!(
+                            "Correct {} \n Wrong {}",
+                            self.stats[2].0, self.stats[2].1
+                        )),
+                    ]
+                    .padding(5),
+                ]
+                .padding(7)
+            ]
+            .into()
         }
     }
 
@@ -147,16 +184,27 @@ impl Application for State {
                 } else {
                     self.wrong_clicks += 1;
                 }
-
-                self.timeout = std::cmp::max(
-                    self.timeout - Duration::from_millis(500),
-                    Duration::from_secs(5),
-                );
-                self.elapsed_time = Duration::ZERO;
             }
             Message::Tick(t) => {
                 self.elapsed_time += t - self.last_tick;
                 self.last_tick = t;
+
+                if self.elapsed_time > self.timeout && self.level < 4 {
+                    self.elapsed_time = Duration::ZERO;
+                    self.timeout = match self.level {
+                        1 => Duration::from_secs(10),
+                        2 => Duration::from_secs(7),
+                        3 => Duration::from_secs(5),
+                        _ => Duration::ZERO,
+                    };
+
+                    self.stats[(self.level - 1) as usize].0 = self.correct_clicks;
+                    self.stats[(self.level - 1) as usize].1 = self.wrong_clicks;
+
+                    self.correct_clicks = 0;
+                    self.wrong_clicks = 0;
+                    self.level += 1;
+                }
             }
         }
 
