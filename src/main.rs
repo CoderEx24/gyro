@@ -23,6 +23,9 @@ struct State {
     elapsed_time: Duration,
     timeout: Duration,
     last_tick: Instant,
+
+    correct_clicks: u64,
+    wrong_clicks: u64,
 }
 
 impl Application for State {
@@ -50,6 +53,8 @@ impl Application for State {
                 elapsed_time: Duration::ZERO,
                 timeout: Duration::from_secs(10),
                 last_tick: Instant::now(),
+                correct_clicks: 0,
+                wrong_clicks: 0,
             },
             Command::none(),
         )
@@ -60,25 +65,19 @@ impl Application for State {
     }
 
     fn view(&self) -> Element<Message> {
-        let message = if self.was_correct.is_none() {
-            ""
-        } else if self.was_correct.unwrap() {
-            "Correct"
-        } else {
-            "NO!!!"
-        };
-
         let diff = if self.timeout > self.elapsed_time {
             self.timeout - self.elapsed_time
         } else {
             Duration::ZERO
         };
 
+        let score = format!("{} Correct | {} Wrong", self.correct_clicks, self.wrong_clicks);
+
         if diff != Duration::ZERO {
             column![
                 row![
                     horizontal_space(),
-                    text(message),
+                    text(score),
                     horizontal_space(),
                     text(format!("{:0>2}:{:02}", diff.as_secs(), diff.as_millis())),
                     horizontal_space(),
@@ -116,7 +115,9 @@ impl Application for State {
             .padding(20)
             .into()
         } else {
-            column![text("GAME OVER"),].into()
+            column![
+                text("GAME OVER"),
+            ].into()
         }
     }
 
@@ -141,12 +142,16 @@ impl Application for State {
                 self.chars.shuffle(&mut rng);
 
                 if was_correct {
-                    self.timeout = std::cmp::max(
-                        self.timeout - Duration::from_millis(500),
-                        Duration::from_secs(5),
-                    );
-                    self.elapsed_time = Duration::ZERO;
+                    self.correct_clicks += 1;
+                } else {
+                    self.wrong_clicks += 1;
                 }
+
+                self.timeout = std::cmp::max(
+                    self.timeout - Duration::from_millis(500),
+                    Duration::from_secs(5),
+                );
+                self.elapsed_time = Duration::ZERO;
             }
             Message::Tick(t) => {
                 self.elapsed_time += t - self.last_tick;
