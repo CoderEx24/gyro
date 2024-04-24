@@ -1,27 +1,58 @@
-use iced::widget::{button, column, horizontal_space, row, text, Button, Column, Text};
 use iced::alignment::{self, Alignment};
-use iced::{Element, Sandbox, Settings};
-use rand::prelude::*;
-use rand::distributions::Alphanumeric;
+use iced::executor;
+use iced::theme::Theme;
+use iced::time;
+use iced::widget::{button, column, horizontal_space, row, text, Button, Column, Text};
+use iced::{Application, Command, Element, Settings, Subscription};
 
-struct State {
-    chosen_letter: u8,
-    was_correct: Option<bool>,
-}
+use rand::distributions::Alphanumeric;
+use rand::prelude::*;
+
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Copy)]
 enum Message {
     Selected(u8),
+    Tick(Instant),
 }
 
-impl Sandbox for State {
-    type Message = Message;
+struct State {
+    chosen_letter: u8,
+    chars: Vec<u8>,
+    was_correct: Option<bool>,
+    elapsed_time: Duration,
+    timeout: Duration,
+    last_tick: Instant,
+}
 
-    fn new() -> Self {
-        Self {
-            chosen_letter: rand::thread_rng().sample(Alphanumeric),
-            was_correct: None
+impl Application for State {
+    type Message = Message;
+    type Theme = Theme;
+    type Executor = executor::Default;
+    type Flags = ();
+
+    fn new(_: ()) -> (Self, Command<Message>) {
+        let chosen_letter = rand::thread_rng().sample(Alphanumeric);
+        let mut chars = vec![chosen_letter];
+
+        for _ in 1..=3 {
+            chars.push(rand::thread_rng().sample(Alphanumeric));
         }
+
+        let mut rng = rand::thread_rng();
+        chars.shuffle(&mut rng);
+
+        (
+            Self {
+                chosen_letter,
+                chars,
+                was_correct: None,
+                elapsed_time: Duration::ZERO,
+                timeout: Duration::from_secs(10),
+                last_tick: Instant::now(),
+            },
+            Command::none(),
+        )
     }
 
     fn title(&self) -> String {
@@ -29,15 +60,6 @@ impl Sandbox for State {
     }
 
     fn view(&self) -> Element<Message> {
-        let mut new_chars: Vec<u8> = vec![self.chosen_letter];
-        let mut rng = rand::thread_rng();
-
-        for _ in 0..3 {
-            new_chars.push(rng.sample(Alphanumeric));
-        }
-
-        new_chars.shuffle(&mut rng);
-
         let message = if self.was_correct.is_none() {
             ""
         } else if self.was_correct.unwrap() {
@@ -46,42 +68,82 @@ impl Sandbox for State {
             "NO!!!"
         };
 
-        column![
-            row![
-                text(message),
-            ],
-            row![
-                button(text(new_chars[0] as char))
-                    .on_press(Message::Selected(new_chars[0]))
-                    .padding(20), 
-                horizontal_space(), 
-                button(text(new_chars[1] as char))
-                    .on_press(Message::Selected(new_chars[1]))
-                    .padding(20), 
-            ],
-            row![
-                text(self.chosen_letter as char)
+        let diff = if self.timeout > self.elapsed_time {
+            self.timeout - self.elapsed_time
+        } else {
+            Duration::ZERO
+        };
+
+        if diff != Duration::ZERO {
+            column![
+                row![
+                    text(message),
+                    horizontal_space(),
+                    text(format!("{:0>2}:{:02}", diff.as_secs(), diff.as_millis())),
+                ],
+                row![
+                    button(text(self.chars[0] as char))
+                        .on_press(Message::Selected(self.chars[0]))
+                        .padding(20),
+                    horizontal_space(),
+                    button(text(self.chars[1] as char))
+                        .on_press(Message::Selected(self.chars[1]))
+                        .padding(20),
+                ],
+                row![text(self.chosen_letter as char)
                     .horizontal_alignment(alignment::Horizontal::Center)
-                    .vertical_alignment(alignment::Vertical::Center)
-            ],
-            row![
-                button(text(new_chars[2] as char))
-                    .on_press(Message::Selected(new_chars[2]))
-                    .padding(20), 
-                horizontal_space(), 
-                button(text(new_chars[3] as char))
-                    .on_press(Message::Selected(new_chars[3]))
-                    .padding(20), 
-            ],
-        ]
-        .padding(20)
-        .into()
+                    .vertical_alignment(alignment::Vertical::Center)],
+                row![
+                    button(text(self.chars[2] as char))
+                        .on_press(Message::Selected(self.chars[2]))
+                        .padding(20),
+                    horizontal_space(),
+                    button(text(self.chars[3] as char))
+                        .on_press(Message::Selected(self.chars[3]))
+                        .padding(20),
+                ],
+            ]
+            .padding(20)
+            .into()
+        } else {
+            column![
+                text("GAME OVER"),
+            ].into()
+        }
     }
 
-    fn update(&mut self, message: Message) {
-        let Message::Selected(letter) = message;
-        self.was_correct = Some(letter == self.chosen_letter);
-        self.chosen_letter = rand::thread_rng().sample(Alphanumeric);
+    fn subscription(&self) -> Subscription<Message> {
+        time::every(Duration::from_millis(1)).map(Message::Tick)
+    }
+
+    fn update(&mut self, message: Message) -> Command<Message> {
+        match message {
+            Message::Selected(letter) => {
+                let was_correct = letter == self.chosen_letter;
+                self.was_correct = Some(was_correct);
+                self.chosen_letter = rand::thread_rng().sample(Alphanumeric);
+
+                self.chars[0] = self.chosen_letter;
+                let mut rng = rand::thread_rng();
+
+                for i in 1..=3 {
+                    self.chars[i] = rng.sample(Alphanumeric);
+                }
+
+                self.chars.shuffle(&mut rng);
+
+                if was_correct {
+                    self.timeout = std::cmp::max(self.timeout - Duration::from_millis(500), Duration::from_secs(5)); 
+                    self.elapsed_time = Duration::ZERO;
+                }
+            }
+            Message::Tick(t) => {
+                self.elapsed_time += t - self.last_tick;
+                self.last_tick = t;
+            }
+        }
+
+        Command::none()
     }
 }
 
