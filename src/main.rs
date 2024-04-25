@@ -40,11 +40,10 @@ impl Application for State {
         let chosen_letter = rand::thread_rng().sample(Alphanumeric);
         let mut chars = vec![chosen_letter];
 
-        for _ in 1..=3 {
-            chars.push(rand::thread_rng().sample(Alphanumeric));
-        }
-
         let mut rng = rand::thread_rng();
+
+        chars.extend(Alphanumeric.sample_iter(&mut rng).take(3).map(u8::from));
+
         chars.shuffle(&mut rng);
 
         (
@@ -125,35 +124,19 @@ impl Application for State {
         } else {
             column![
                 text("GAME OVER\nStats"),
-                row![
-                    column![
-                        text("Level 1"),
-                        text(format!(
-                            "Correct {} \n Wrong {}",
-                            self.stats[0].0, self.stats[0].1
-                        )),
-                    ]
-                    .padding(5),
-                    horizontal_space(),
-                    column![
-                        text("Level 2"),
-                        text(format!(
-                            "Correct {} \n Wrong {}",
-                            self.stats[1].0, self.stats[1].1
-                        )),
-                    ]
-                    .padding(5),
-                    horizontal_space(),
-                    column![
-                        text("Level 3"),
-                        text(format!(
-                            "Correct {} \n Wrong {}",
-                            self.stats[2].0, self.stats[2].1
-                        )),
-                    ]
-                    .padding(5),
-                ]
-                .padding(7)
+                row![]
+                    .extend(self.stats.iter().enumerate().map(|(i, (c, w))| {
+                        row![
+                            column![
+                                text(format!("Level {}", i)),
+                                text(format!("Correct {}\nWrong {}", c, w))
+                            ],
+                            horizontal_space()
+                        ]
+                        .padding(10)
+                        .into()
+                    }))
+                    .padding(7)
             ]
             .into()
         }
@@ -170,12 +153,12 @@ impl Application for State {
                 self.was_correct = Some(was_correct);
                 self.chosen_letter = rand::thread_rng().sample(Alphanumeric);
 
-                self.chars[0] = self.chosen_letter;
                 let mut rng = rand::thread_rng();
 
-                for i in 1..=3 {
-                    self.chars[i] = rng.sample(Alphanumeric);
-                }
+                self.chars.clear();
+                self.chars.push(self.chosen_letter);
+                self.chars
+                    .extend(Alphanumeric.sample_iter(&mut rng).take(3).map(u8::from));
 
                 self.chars.shuffle(&mut rng);
 
