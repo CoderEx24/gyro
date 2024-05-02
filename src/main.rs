@@ -14,6 +14,7 @@ use std::time::{Duration, Instant};
 enum Message {
     Selected(u8),
     Tick(Instant),
+    Reset,
 }
 
 struct State {
@@ -85,7 +86,7 @@ impl Application for State {
                     horizontal_space(),
                     text(score),
                     horizontal_space(),
-                    text(format!("{:0>2}:{:02}", diff.as_secs(), diff.as_millis())),
+                    text(format!("{:0>2}", diff.as_secs())),
                     horizontal_space(),
                     vertical_space(),
                 ],
@@ -123,20 +124,35 @@ impl Application for State {
             .into()
         } else {
             column![
-                text("GAME OVER\nStats"),
+                row![
+                    horizontal_space(),
+                    text("GAME OVER"),
+                    horizontal_space(),
+                ],
+                row![
+                    horizontal_space(),
+                    text("Stats"),
+                    horizontal_space(),
+                ],
                 row![]
                     .extend(self.stats.iter().enumerate().map(|(i, (c, w))| {
                         row![
                             column![
-                                text(format!("Level {}", i)),
-                                text(format!("Correct {}\nWrong {}", c, w))
+                                text(format!("Level {}", i + 1)),
+                                text(format!("Correct {}", c)),
+                                text(format!("Wrong {}", w)),
                             ],
                             horizontal_space()
                         ]
                         .padding(10)
                         .into()
                     }))
-                    .padding(7)
+                    .padding(7),
+                row![
+                    horizontal_space(),
+                    button("Reset").on_press(Message::Reset),
+                    horizontal_space(),
+                ]
             ]
             .into()
         }
@@ -148,6 +164,13 @@ impl Application for State {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
+            Message::Reset => {
+                self.level = 1;
+                self.elapsed_time = Duration::ZERO;
+                self.last_tick = Instant::now();
+                self.timeout = Duration::from_secs(10);
+
+            },
             Message::Selected(letter) => {
                 let was_correct = letter == self.chosen_letter;
                 self.was_correct = Some(was_correct);
@@ -173,6 +196,7 @@ impl Application for State {
                 self.last_tick = t;
 
                 if self.elapsed_time > self.timeout && self.level < 4 {
+                    self.level += 1;
                     self.elapsed_time = Duration::ZERO;
                     self.timeout = match self.level {
                         1 => Duration::from_secs(10),
@@ -181,12 +205,11 @@ impl Application for State {
                         _ => Duration::ZERO,
                     };
 
-                    self.stats[(self.level - 1) as usize].0 = self.correct_clicks;
-                    self.stats[(self.level - 1) as usize].1 = self.wrong_clicks;
+                    self.stats[(self.level - 2) as usize].0 = self.correct_clicks;
+                    self.stats[(self.level - 2) as usize].1 = self.wrong_clicks;
 
                     self.correct_clicks = 0;
                     self.wrong_clicks = 0;
-                    self.level += 1;
                 }
             }
         }
