@@ -12,14 +12,14 @@ use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Copy)]
 enum Message {
-    Selected(u8),
+    Selected(char),
     Tick(Instant),
     Reset,
 }
 
 struct State {
-    chosen_letter: u8,
-    chars: Vec<u8>,
+    chosen_letter: char,
+    chars: Vec<char>,
     was_correct: Option<bool>,
     elapsed_time: Duration,
     timeout: Duration,
@@ -37,13 +37,13 @@ impl Application for State {
     type Executor = executor::Default;
     type Flags = ();
 
-    fn new(_: ()) -> (Self, Command<Message>) {
-        let chosen_letter = rand::thread_rng().sample(Alphanumeric);
+    fn new(_: Self::Flags) -> (Self, Command<Message>) {
+        let chosen_letter = rand::thread_rng().sample(Alphanumeric) as char;
         let mut chars = vec![chosen_letter];
 
         let mut rng = rand::thread_rng();
 
-        chars.extend(Alphanumeric.sample_iter(&mut rng).take(3).map(u8::from));
+        chars.extend(Alphanumeric.sample_iter(&mut rng).take(3).map(char::from));
 
         chars.shuffle(&mut rng);
 
@@ -92,29 +92,29 @@ impl Application for State {
                 ],
                 row![
                     horizontal_space(),
-                    button(text(self.chars[0] as char))
+                    button(text(self.chars[0]))
                         .on_press(Message::Selected(self.chars[0]))
                         .padding(20),
                     horizontal_space(),
                     vertical_space(),
                 ],
                 row![
-                    button(text(self.chars[1] as char))
+                    button(text(self.chars[1]))
                         .on_press(Message::Selected(self.chars[1]))
                         .padding(20),
                     horizontal_space(),
-                    text(self.chosen_letter as char)
+                    text(self.chosen_letter)
                         .horizontal_alignment(alignment::Horizontal::Center)
                         .vertical_alignment(alignment::Vertical::Center),
                     vertical_space(),
                     horizontal_space(),
-                    button(text(self.chars[2] as char))
+                    button(text(self.chars[2]))
                         .on_press(Message::Selected(self.chars[2]))
                         .padding(20),
                 ],
                 row![
                     horizontal_space(),
-                    button(text(self.chars[3] as char))
+                    button(text(self.chars[3]))
                         .on_press(Message::Selected(self.chars[3]))
                         .padding(20),
                     horizontal_space(),
@@ -174,14 +174,14 @@ impl Application for State {
             Message::Selected(letter) => {
                 let was_correct = letter == self.chosen_letter;
                 self.was_correct = Some(was_correct);
-                self.chosen_letter = rand::thread_rng().sample(Alphanumeric);
+                self.chosen_letter = rand::thread_rng().sample(Alphanumeric) as char;
 
                 let mut rng = rand::thread_rng();
 
                 self.chars.clear();
                 self.chars.push(self.chosen_letter);
                 self.chars
-                    .extend(Alphanumeric.sample_iter(&mut rng).take(3).map(u8::from));
+                    .extend(Alphanumeric.sample_iter(&mut rng).take(3).map(char::from));
 
                 self.chars.shuffle(&mut rng);
 
