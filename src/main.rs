@@ -2,7 +2,7 @@ use iced::alignment;
 use iced::executor;
 use iced::theme::Theme;
 use iced::time;
-use iced::widget::{button, column, horizontal_space, row, text, vertical_space};
+use iced::widget::{mouse_area, button, column, horizontal_space, row, text, vertical_space};
 use iced::{Application, Command, Element, Settings, Subscription};
 
 use rand::distributions::Alphanumeric;
@@ -92,31 +92,27 @@ impl Application for State {
                 ],
                 row![
                     horizontal_space(),
-                    button(text(self.chars[0]))
-                        .on_press(Message::Selected(self.chars[0]))
-                        .padding(20),
+                    mouse_area(text(self.chars[0]))
+                        .on_enter(Message::Selected(self.chars[0])),
                     horizontal_space(),
                     vertical_space(),
                 ],
                 row![
-                    button(text(self.chars[1]))
-                        .on_press(Message::Selected(self.chars[1]))
-                        .padding(20),
+                    mouse_area(text(self.chars[1]))
+                        .on_enter(Message::Selected(self.chars[1])),
                     horizontal_space(),
                     text(self.chosen_letter)
                         .horizontal_alignment(alignment::Horizontal::Center)
                         .vertical_alignment(alignment::Vertical::Center),
                     vertical_space(),
                     horizontal_space(),
-                    button(text(self.chars[2]))
-                        .on_press(Message::Selected(self.chars[2]))
-                        .padding(20),
+                    mouse_area(text(self.chars[2]))
+                        .on_enter(Message::Selected(self.chars[2])),
                 ],
                 row![
                     horizontal_space(),
-                    button(text(self.chars[3]))
-                        .on_press(Message::Selected(self.chars[3]))
-                        .padding(20),
+                    mouse_area(text(self.chars[3]))
+                        .on_enter(Message::Selected(self.chars[3])),
                     horizontal_space(),
                 ],
             ]
