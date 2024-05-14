@@ -1,7 +1,7 @@
 #define __SFR_OFFSET 0
 #include <avr/io.h>
 
-.equ GYRO_ADDR, 0b11010000
+.equ GYRO_ADDR, 0b11010001
 
 .equ GYRO_XL, 0x27
 .equ GYRO_XH, 0x29
@@ -29,11 +29,24 @@ main:
     out TWCR, r16
 
 loop:
-    
+    ldi ZH, hi8(start_str)
+    ldi ZL, lo8(start_str)
+    rcall log_string
+
+    rcall i2c_start
+
+    ldi ZH, hi8(accessing_str)
+    ldi ZL, lo8(accessing_str)
+    rcall log_string
+
     ldi r20, GYRO_ADDR
     rcall i2c_write
 
-    ldi r20, GYRO_YL
+    ldi ZH, hi8(reading_str)
+    ldi ZL, lo8(reading_str)
+    rcall log_string
+
+    ldi r20, 1|(GYRO_YL<<1)
     rcall i2c_write
 
     rcall i2c_read
@@ -119,4 +132,6 @@ timer_overflow_loop:
     ret
 
 start_str: .asciz "Starting...\n"
+accessing_str: .asciz "Addressing Slave...\n"
+reading_str: .asciz "Reading...\n"
 
