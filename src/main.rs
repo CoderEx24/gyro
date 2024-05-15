@@ -2,7 +2,10 @@ use iced::alignment;
 use iced::executor;
 use iced::theme::Theme;
 use iced::time;
-use iced::widget::{mouse_area, button, column, horizontal_space, row, text, vertical_space};
+use iced::widget::{
+    button, column, container, horizontal_space, mouse_area, progress_bar, row, text,
+    vertical_space,
+};
 use iced::{Application, Command, Element, Settings, Subscription};
 
 use rand::distributions::Alphanumeric;
@@ -12,7 +15,8 @@ use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Copy)]
 enum Message {
-    Selected(char),
+    MouseEntered(char),
+    MouseLeft,
     Tick(Instant),
     Reset,
 }
@@ -21,8 +25,10 @@ struct State {
     chosen_letter: char,
     chars: Vec<char>,
     was_correct: Option<bool>,
+    currently_on: Option<char>,
     elapsed_time: Duration,
     timeout: Duration,
+    mouse_on_durations: [Duration; 4],
     last_tick: Instant,
 
     correct_clicks: u32,
@@ -53,7 +59,9 @@ impl Application for State {
                 chars,
                 was_correct: None,
                 elapsed_time: Duration::ZERO,
+                currently_on: None,
                 timeout: Duration::from_secs(10),
+                mouse_on_durations: [Duration::ZERO; 4],
                 last_tick: Instant::now(),
                 correct_clicks: 0,
                 wrong_clicks: 0,
@@ -80,6 +88,13 @@ impl Application for State {
             self.correct_clicks, self.wrong_clicks
         );
 
+        let ratios: Vec<f32> = self
+            .mouse_on_durations
+            .iter()
+            .map(|d| d.as_secs_f32() * 1000f32)
+            .collect();
+
+        // {{{ view logic
         if self.level < 4 {
             column![
                 row![
@@ -92,27 +107,50 @@ impl Application for State {
                 ],
                 row![
                     horizontal_space(),
-                    mouse_area(text(self.chars[0]))
-                        .on_enter(Message::Selected(self.chars[0])),
+                    column![
+                        mouse_area(container(text(self.chars[0])).padding(20))
+                            .on_enter(Message::MouseEntered(self.chars[0]))
+                            .on_exit(Message::MouseLeft),
+                        progress_bar(0f32..=700f32, ratios[0]),
+                    ]
+                    .align_items(alignment::Vertical::Center.into()),
                     horizontal_space(),
                     vertical_space(),
                 ],
                 row![
-                    mouse_area(text(self.chars[1]))
-                        .on_enter(Message::Selected(self.chars[1])),
+                    column![
+                        mouse_area(container(text(self.chars[1])).padding(20))
+                            .on_enter(Message::MouseEntered(self.chars[1]))
+                            .on_exit(Message::MouseLeft),
+                        progress_bar(0f32..=700f32, ratios[1]),
+                    ]
+                    .align_items(alignment::Vertical::Center.into()),
                     horizontal_space(),
-                    text(self.chosen_letter)
-                        .horizontal_alignment(alignment::Horizontal::Center)
-                        .vertical_alignment(alignment::Vertical::Center),
+                    container(text(self.chosen_letter))
+                        .padding(30)
+                        .align_x(alignment::Horizontal::Center)
+                        .align_y(alignment::Vertical::Center)
+                        .center_x()
+                        .center_y(),
                     vertical_space(),
                     horizontal_space(),
-                    mouse_area(text(self.chars[2]))
-                        .on_enter(Message::Selected(self.chars[2])),
+                    column![
+                        mouse_area(container(text(self.chars[2])).padding(20))
+                            .on_enter(Message::MouseEntered(self.chars[2]))
+                            .on_exit(Message::MouseLeft),
+                        progress_bar(0f32..=700f32, ratios[2]),
+                    ]
+                    .align_items(alignment::Vertical::Center.into()),
                 ],
                 row![
                     horizontal_space(),
-                    mouse_area(text(self.chars[3]))
-                        .on_enter(Message::Selected(self.chars[3])),
+                    column![
+                        mouse_area(container(text(self.chars[3])).padding(20))
+                            .on_enter(Message::MouseEntered(self.chars[3]))
+                            .on_exit(Message::MouseLeft),
+                        progress_bar(0f32..=700f32, ratios[3]),
+                    ]
+                    .align_items(alignment::Vertical::Center.into()),
                     horizontal_space(),
                 ],
             ]
@@ -120,16 +158,8 @@ impl Application for State {
             .into()
         } else {
             column![
-                row![
-                    horizontal_space(),
-                    text("GAME OVER"),
-                    horizontal_space(),
-                ],
-                row![
-                    horizontal_space(),
-                    text("Stats"),
-                    horizontal_space(),
-                ],
+                row![horizontal_space(), text("GAME OVER"), horizontal_space(),],
+                row![horizontal_space(), text("Stats"), horizontal_space(),],
                 row![]
                     .extend(self.stats.iter().enumerate().map(|(i, (c, w))| {
                         row![
@@ -151,6 +181,7 @@ impl Application for State {
                 ]
             ]
             .into()
+            // }}}
         }
     }
 
@@ -165,31 +196,48 @@ impl Application for State {
                 self.elapsed_time = Duration::ZERO;
                 self.last_tick = Instant::now();
                 self.timeout = Duration::from_secs(10);
-
-            },
-            Message::Selected(letter) => {
-                let was_correct = letter == self.chosen_letter;
-                self.was_correct = Some(was_correct);
-                self.chosen_letter = rand::thread_rng().sample(Alphanumeric) as char;
-
-                let mut rng = rand::thread_rng();
-
-                self.chars.clear();
-                self.chars.push(self.chosen_letter);
-                self.chars
-                    .extend(Alphanumeric.sample_iter(&mut rng).take(3).map(char::from));
-
-                self.chars.shuffle(&mut rng);
-
-                if was_correct {
-                    self.correct_clicks += 1;
-                } else {
-                    self.wrong_clicks += 1;
-                }
+            }
+            Message::MouseEntered(letter) => {
+                self.currently_on = Some(letter);
+            }
+            Message::MouseLeft => {
+                self.currently_on = None;
+                self.mouse_on_durations.fill(Duration::ZERO);
             }
             Message::Tick(t) => {
-                self.elapsed_time += t - self.last_tick;
+                let diff = t - self.last_tick;
+                self.elapsed_time += diff;
                 self.last_tick = t;
+
+                if self.currently_on.is_some() {
+                    let letter = self.currently_on.unwrap();
+                    let idx = self.chars.iter().position(|&c| c == letter).unwrap();
+                    self.mouse_on_durations[idx] += diff;
+
+                    if self.mouse_on_durations[idx] > Duration::from_millis(700) {
+                        let was_correct = letter == self.chosen_letter;
+                        self.was_correct = Some(was_correct);
+                        self.chosen_letter = rand::thread_rng().sample(Alphanumeric) as char;
+
+                        let mut rng = rand::thread_rng();
+
+                        self.chars.clear();
+                        self.chars.push(self.chosen_letter);
+                        self.chars
+                            .extend(Alphanumeric.sample_iter(&mut rng).take(3).map(char::from));
+
+                        self.chars.shuffle(&mut rng);
+
+                        if was_correct {
+                            self.correct_clicks += 1;
+                        } else {
+                            self.wrong_clicks += 1;
+                        }
+
+                        self.currently_on = Some(self.chars[idx]);
+                        self.mouse_on_durations.fill(Duration::ZERO);
+                    }
+                }
 
                 if self.elapsed_time > self.timeout && self.level < 4 {
                     self.level += 1;
