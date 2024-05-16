@@ -34,7 +34,7 @@ struct State {
     correct_clicks: u32,
     wrong_clicks: u32,
     missed_clicks: u32,
-    stats: Vec<(u32, u32, u32)>,
+    stats: Vec<Option<(u32, u32, u32)>>,
     level: u8,
 }
 
@@ -67,8 +67,8 @@ impl Application for State {
                 correct_clicks: 0,
                 wrong_clicks: 0,
                 missed_clicks: 0,
-                stats: vec![(0, 0, 0); 3],
-                level: 1,
+                stats: vec![None; 3],
+                level: 0,
             },
             Command::none(),
         )
@@ -94,10 +94,9 @@ impl Application for State {
             self.correct_clicks, self.wrong_clicks, self.missed_clicks
         );
 
-        let level = format!(
-            "Level {}, Trial {}", 
-            self.level / 10 + 1, self.level % 10 + 1
-        );
+        let (level, trial) = (self.level / 10 + 1, self.level % 10 + 1);
+
+        let level = format!("Level {}, Trial {}", level, trial);
 
         let ratios: Vec<f32> = self
             .mouse_on_durations
@@ -106,7 +105,7 @@ impl Application for State {
             .collect();
 
         // {{{ view logic
-        if self.level <= 30 {
+        if self.level < 30 {
             column![
                 row![
                     text(score),
@@ -181,19 +180,25 @@ impl Application for State {
                 row![horizontal_space(), text("GAME OVER"), horizontal_space(),],
                 row![horizontal_space(), text("Stats"), horizontal_space(),],
                 row![]
-                    .extend(self.stats.iter().enumerate().map(|(i, (c, w, m))| {
-                        row![
-                            column![
-                                text(format!("Level {}", i + 1)),
-                                text(format!("Correct {}", c)),
-                                text(format!("Wrong {}", w)),
-                                text(format!("Missed {}", m)),
-                            ],
-                            horizontal_space()
-                        ]
-                        .padding(10)
-                        .into()
-                    }))
+                    .extend(
+                        self.stats
+                            .iter()
+                            .map(|o| o.unwrap_or((999, 999, 999)))
+                            .enumerate()
+                            .map(|(i, (c, w, m))| {
+                                row![
+                                    column![
+                                        text(format!("Level {}", i + 1)),
+                                        text(format!("Correct {}", c)),
+                                        text(format!("Wrong {}", w)),
+                                        text(format!("Missed {}", m)),
+                                    ],
+                                    horizontal_space()
+                                ]
+                                .padding(10)
+                                .into()
+                            })
+                    )
                     .padding(7),
                 row![
                     horizontal_space(),
@@ -215,10 +220,13 @@ impl Application for State {
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::Reset => {
-                self.level = 1;
+                self.level = 0;
                 self.elapsed_time = Duration::ZERO;
                 self.last_tick = Instant::now();
                 self.timeout = Duration::from_secs(10);
+                self.currently_on = None;
+                self.mouse_on_durations.fill(Duration::ZERO);
+                self.stats.fill(None);
                 self.correct_clicks = 0;
                 self.wrong_clicks = 0;
                 self.missed_clicks = 0;
@@ -262,24 +270,35 @@ impl Application for State {
 
                         self.currently_on = Some(self.chars[idx]);
                         self.mouse_on_durations.fill(Duration::ZERO);
+                        self.elapsed_time = Duration::ZERO;
+                        self.level += 1;
                     }
                 }
 
-                if self.elapsed_time > self.timeout && self.level < 4 {
-                    self.level += 1;
+                if self.elapsed_time > self.timeout && self.level < 30 {
+                    self.missed_clicks += 1;
                     self.elapsed_time = Duration::ZERO;
-                    self.timeout = match self.level {
-                        1 => Duration::from_secs(10),
-                        2 => Duration::from_secs(7),
-                        3 => Duration::from_secs(5),
-                        _ => Duration::ZERO,
-                    };
+                    self.level += 1;
+                }
 
-                    self.stats[(self.level - 2) as usize].0 = self.correct_clicks;
-                    self.stats[(self.level - 2) as usize].1 = self.wrong_clicks;
+                if self.level % 10 == 0 && self.level > 0 {
+                    let idx = (self.level / 10 - 1) as usize;
 
-                    self.correct_clicks = 0;
-                    self.wrong_clicks = 0;
+                    if idx < self.stats.len() && self.stats[idx].is_none() {
+                        self.timeout = match self.level {
+                            00..=09 => Duration::from_secs(10),
+                            10..=19 => Duration::from_secs(7),
+                            20..=29 => Duration::from_secs(5),
+                            _ => Duration::ZERO,
+                        };
+
+                        self.stats[idx] =
+                            Some((self.correct_clicks, self.wrong_clicks, self.missed_clicks));
+
+                        self.correct_clicks = 0;
+                        self.wrong_clicks = 0;
+                        self.missed_clicks = 0;
+                    }
                 }
             }
         }
