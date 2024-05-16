@@ -76,6 +76,10 @@ impl Application for State {
         "Gyro".into()
     }
 
+    fn theme(&self) -> Self::Theme {
+        Self::Theme::Dracula
+    }
+
     fn view(&self) -> Element<Message> {
         let diff = if self.timeout > self.elapsed_time {
             self.timeout - self.elapsed_time
@@ -101,17 +105,26 @@ impl Application for State {
                     horizontal_space(),
                     text(score),
                     horizontal_space(),
-                    text(format!("{:0>2}", diff.as_secs())),
-                    horizontal_space(),
                     vertical_space(),
                 ],
+                row![
+                    horizontal_space(),
+                    text(format!("Time: {:0>2}", diff.as_secs())),
+                    horizontal_space(),
+                    progress_bar(
+                        0f32..=self.timeout.as_secs_f32(),
+                        self.elapsed_time.as_secs_f32()
+                    ),
+                    vertical_space(),
+                ]
+                .align_items(alignment::Horizontal::Center.into()),
                 row![
                     horizontal_space(),
                     column![
                         mouse_area(container(text(self.chars[0])).padding(20))
                             .on_enter(Message::MouseEntered(self.chars[0]))
                             .on_exit(Message::MouseLeft),
-                        progress_bar(0f32..=700f32, ratios[0]),
+                        progress_bar(0f32..=700f32, ratios[0]).height(8),
                     ]
                     .align_items(alignment::Vertical::Center.into()),
                     horizontal_space(),
@@ -122,7 +135,7 @@ impl Application for State {
                         mouse_area(container(text(self.chars[1])).padding(20))
                             .on_enter(Message::MouseEntered(self.chars[1]))
                             .on_exit(Message::MouseLeft),
-                        progress_bar(0f32..=700f32, ratios[1]),
+                        progress_bar(0f32..=700f32, ratios[1]).height(8),
                     ]
                     .align_items(alignment::Vertical::Center.into()),
                     horizontal_space(),
@@ -138,7 +151,7 @@ impl Application for State {
                         mouse_area(container(text(self.chars[2])).padding(20))
                             .on_enter(Message::MouseEntered(self.chars[2]))
                             .on_exit(Message::MouseLeft),
-                        progress_bar(0f32..=700f32, ratios[2]),
+                        progress_bar(0f32..=700f32, ratios[2]).height(8),
                     ]
                     .align_items(alignment::Vertical::Center.into()),
                 ],
@@ -148,7 +161,7 @@ impl Application for State {
                         mouse_area(container(text(self.chars[3])).padding(20))
                             .on_enter(Message::MouseEntered(self.chars[3]))
                             .on_exit(Message::MouseLeft),
-                        progress_bar(0f32..=700f32, ratios[3]),
+                        progress_bar(0f32..=700f32, ratios[3]).height(8),
                     ]
                     .align_items(alignment::Vertical::Center.into()),
                     horizontal_space(),
@@ -180,6 +193,8 @@ impl Application for State {
                     horizontal_space(),
                 ]
             ]
+            .spacing(50)
+            .padding(20)
             .into()
             // }}}
         }
@@ -265,9 +280,10 @@ impl Application for State {
 pub fn main() -> iced::Result {
     let mut settings = Settings::default();
 
-    settings.window.size.width = 400f32;
-    settings.window.size.height = 400f32;
+    settings.window.size.width = 600f32;
+    settings.window.size.height = 600f32;
     settings.window.resizable = false;
+    settings.window.exit_on_close_request = true;
 
     State::run(settings)
 }
