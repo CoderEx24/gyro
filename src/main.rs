@@ -92,6 +92,10 @@ impl Application for State {
             self.correct_clicks, self.wrong_clicks
         );
 
+        let level = format!(
+            "Level {}", self.level
+        );
+
         let ratios: Vec<f32> = self
             .mouse_on_durations
             .iter()
@@ -102,9 +106,9 @@ impl Application for State {
         if self.level < 4 {
             column![
                 row![
-                    horizontal_space(),
                     text(score),
                     horizontal_space(),
+                    text(level),
                     vertical_space(),
                 ],
                 row![
