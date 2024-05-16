@@ -50,7 +50,13 @@ impl Application for State {
 
         let mut rng = rand::thread_rng();
 
-        chars.extend(Alphanumeric.sample_iter(&mut rng).take(3).map(char::from));
+        chars.extend(
+            Alphanumeric
+                .sample_iter(&mut rng)
+                .filter(|&c| c as char != chosen_letter)
+                .take(3)
+                .map(char::from),
+        );
 
         chars.shuffle(&mut rng);
 
@@ -257,8 +263,13 @@ impl Application for State {
 
                         self.chars.clear();
                         self.chars.push(self.chosen_letter);
-                        self.chars
-                            .extend(Alphanumeric.sample_iter(&mut rng).take(3).map(char::from));
+                        self.chars.extend(
+                            Alphanumeric
+                                .sample_iter(&mut rng)
+                                .filter(|&c| c as char != self.chosen_letter)
+                                .take(3)
+                                .map(char::from),
+                        );
 
                         self.chars.shuffle(&mut rng);
 
