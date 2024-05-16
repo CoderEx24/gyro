@@ -33,7 +33,8 @@ struct State {
 
     correct_clicks: u32,
     wrong_clicks: u32,
-    stats: Vec<(u32, u32)>,
+    missed_clicks: u32,
+    stats: Vec<(u32, u32, u32)>,
     level: u8,
 }
 
@@ -65,7 +66,8 @@ impl Application for State {
                 last_tick: Instant::now(),
                 correct_clicks: 0,
                 wrong_clicks: 0,
-                stats: vec![(0, 0); 3],
+                missed_clicks: 0,
+                stats: vec![(0, 0, 0); 3],
                 level: 1,
             },
             Command::none(),
@@ -88,12 +90,13 @@ impl Application for State {
         };
 
         let score = format!(
-            "{} Correct | {} Wrong",
-            self.correct_clicks, self.wrong_clicks
+            "{} Correct | {} Wrong | {} Missed",
+            self.correct_clicks, self.wrong_clicks, self.missed_clicks
         );
 
         let level = format!(
-            "Level {}", self.level
+            "Level {}, Trial {}", 
+            self.level / 10 + 1, self.level % 10 + 1
         );
 
         let ratios: Vec<f32> = self
@@ -103,7 +106,7 @@ impl Application for State {
             .collect();
 
         // {{{ view logic
-        if self.level < 4 {
+        if self.level <= 30 {
             column![
                 row![
                     text(score),
@@ -178,12 +181,13 @@ impl Application for State {
                 row![horizontal_space(), text("GAME OVER"), horizontal_space(),],
                 row![horizontal_space(), text("Stats"), horizontal_space(),],
                 row![]
-                    .extend(self.stats.iter().enumerate().map(|(i, (c, w))| {
+                    .extend(self.stats.iter().enumerate().map(|(i, (c, w, m))| {
                         row![
                             column![
                                 text(format!("Level {}", i + 1)),
                                 text(format!("Correct {}", c)),
                                 text(format!("Wrong {}", w)),
+                                text(format!("Missed {}", m)),
                             ],
                             horizontal_space()
                         ]
@@ -215,6 +219,9 @@ impl Application for State {
                 self.elapsed_time = Duration::ZERO;
                 self.last_tick = Instant::now();
                 self.timeout = Duration::from_secs(10);
+                self.correct_clicks = 0;
+                self.wrong_clicks = 0;
+                self.missed_clicks = 0;
             }
             Message::MouseEntered(letter) => {
                 self.currently_on = Some(letter);
